@@ -11,5 +11,5 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. proto/file_service.proto
       - run: sed -i 's/import file_service_pb2 as/from proto import file_service_pb2 as/' proto/file_service_pb2_grpc.py
-      - run: pytest -q
+      - run: PYTHONPATH=. pytest -q
       - run: docker compose config

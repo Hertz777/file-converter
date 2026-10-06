@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+storage/*
+output/*
+!storage/.gitkeep
+!output/.gitkeep
+
+desktop.ini

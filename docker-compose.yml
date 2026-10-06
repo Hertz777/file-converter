@@ -1,0 +1,83 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fileconverter
+      POSTGRES_USER: converter
+      POSTGRES_PASSWORD: converter
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U converter -d fileconverter"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    command: python -m app.server
+    ports:
+      - "50051:50051"
+    environment:
+      DATABASE_URL: "postgresql://converter:converter@postgres:5432/fileconverter"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      STORAGE_DIR: /storage
+    volumes:
+      - ./storage:/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: python -m app.worker
+    environment:
+      DATABASE_URL: "postgresql://converter:converter@postgres:5432/fileconverter"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      STORAGE_DIR: /storage
+    volumes:
+      - ./storage:/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  client:
+    build: .
+    profiles:
+      - tools
+    command: python client.py
+    environment:
+      GRPC_HOST: "api:50051"
+    volumes:
+      - ./input:/input
+      - ./output:/output
+    depends_on:
+      - api
+
+  tests:
+    build: .
+    profiles:
+      - test
+    command: pytest -q
+    environment:
+      PYTHONPATH: /app
+
+volumes:
+  postgres_data:

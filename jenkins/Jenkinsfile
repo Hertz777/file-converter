@@ -1,0 +1,20 @@
+pipeline {
+    agent any
+    stages {
+        stage('Install') {
+            steps { sh 'pip install -r requirements.txt' }
+        }
+        stage('Generate gRPC') {
+            steps {
+                sh 'python -m grpc_tools.protoc -I./proto --python_out=. --grpc_python_out=. ./proto/file_service.proto'
+                sh "sed -i 's/import file_service_pb2 as/from proto import file_service_pb2 as/' proto/file_service_pb2_grpc.py"
+            }
+        }
+        stage('Tests') {
+            steps { sh 'pytest -q' }
+        }
+        stage('Docker Build') {
+            steps { sh 'docker compose build' }
+        }
+    }
+}

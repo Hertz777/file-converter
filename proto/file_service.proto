@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package fileconverter;
+
+service FileService {
+  rpc UploadFile (UploadFileRequest) returns (UploadFileResponse);
+  rpc GetTaskStatus (TaskStatusRequest) returns (TaskStatusResponse);
+  rpc DownloadResult (DownloadRequest) returns (stream FileChunk);
+}
+
+message UploadFileRequest {
+  string filename = 1;
+  string target_format = 2;
+  bytes content = 3;
+}
+
+message UploadFileResponse {
+  string task_id = 1;
+  string status = 2;
+}
+
+message TaskStatusRequest {
+  string task_id = 1;
+}
+
+message TaskStatusResponse {
+  string task_id = 1;
+  string filename = 2;
+  string target_format = 3;
+  string status = 4;
+  string result_filename = 5;
+  string error_message = 6;
+}
+
+message DownloadRequest {
+  string task_id = 1;
+}
+
+message FileChunk {
+  bytes content = 1;
+}

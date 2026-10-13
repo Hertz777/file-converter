@@ -116,6 +116,7 @@ async function loadHistory() {
     historyMessage.textContent = '';
 
     for (const task of data.tasks) {
+              
       const item = document.createElement('div');
       item.style.cssText =
         'background:#f3f5f8;padding:14px;border-radius:10px;margin-top:10px;overflow-wrap:anywhere';
@@ -123,11 +124,20 @@ async function loadHistory() {
       const title = document.createElement('strong');
       title.textContent = task.filename;
 
-      const details = document.createElement('p');
-      details.textContent =
-        `${task.target_format.toUpperCase()} · ${historyLabels[task.status] || task.status}`;
+      const statusColors = {
+      QUEUED: '#b45309',
+      PROCESSING: '#2563eb',
+      COMPLETED: '#15803d',
+      FAILED: '#dc2626'
+    };
 
-      item.append(title, details);
+const details = document.createElement('p');
+details.textContent =
+  `${task.target_format.toUpperCase()} · ${historyLabels[task.status] || task.status}`;
+details.style.cssText =
+  `color:${statusColors[task.status] || '#475569'};font-weight:600;margin-bottom:0`;
+
+item.append(title, details);
 
       if (task.error_message) {
         const error = document.createElement('p');
@@ -176,10 +186,16 @@ async function checkStatus(taskId){
    const response=await fetch('/api/status/'+encodeURIComponent(taskId));const data=await readResponse(response);
    statusTitle.textContent=labels[data.status]||data.status;
    statusText.textContent=data.error_message||('ID задачи: '+taskId);
-   if(data.status==='COMPLETED'){
-    downloadLink.href='/download/'+encodeURIComponent(taskId);downloadLink.hidden=false;
-    downloadLink.textContent='Скачать '+(data.target_format||'файл').toUpperCase();againButton.hidden=false;return;
+   
+if(data.status==='COMPLETED'){
+    downloadLink.href='/download/'+encodeURIComponent(taskId);
+    downloadLink.hidden=false;
+    downloadLink.textContent='Скачать '+(data.target_format||'файл').toUpperCase();
+    againButton.hidden=false;
+    await loadHistory();
+    return;
    }
+
    if(data.status==='FAILED'){againButton.hidden=false;return;}
   }catch(error){statusTitle.textContent='Не удалось проверить статус';statusText.textContent=error.message;}
   await new Promise(resolve=>setTimeout(resolve,2000));

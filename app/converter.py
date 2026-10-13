@@ -4,6 +4,7 @@ from xml.sax.saxutils import escape
 
 from PIL import Image
 from pypdf import PdfReader
+from docx import Document
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -24,6 +25,33 @@ def convert(source: Path, target: Path, target_format: str):
             for page in reader.pages
         )
         target.write_text(text, encoding="utf-8")
+        return
+    
+    if source_ext == "txt" and fmt == "docx":
+        text = source.read_text(encoding="utf-8-sig")
+        document = Document()
+
+        for line in text.splitlines():
+            document.add_paragraph(line)
+
+        document.save(str(target))
+        return
+    if source_ext == "pdf" and fmt == "docx":
+        reader = PdfReader(str(source))
+        document = Document()
+
+        for page in reader.pages:
+            text = page.extract_text() or ""
+
+            for line in text.splitlines():
+                clean_line = "".join(
+                    char for char in line
+                    if char in "\t\n\r"
+                    or ord(char) >= 32
+                )
+                document.add_paragraph(clean_line)
+
+        document.save(str(target))
         return
 
     if source_ext == "txt" and fmt == "pdf":

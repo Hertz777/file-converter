@@ -68,7 +68,7 @@ button:hover{background:#414141}button:disabled{opacity:.6;cursor:wait}.hint{fon
 <label for="file">Выберите файл</label><input id="file" type="file" name="file" required>
 <p class="hint">Для первого теста используйте небольшой файл.</p>
 <label for="format">Формат результата</label>
-<select id="format" name="target_format"><option value="pdf">PDF</option><option value="txt">TXT</option></select>
+<select id="format" name="target_format"><option value="pdf">PDF</option><option value="txt">TXT</option><option value="docx">Word (DOCX)</option></select>
 <button id="submit-button" type="submit">Конвертировать</button>
 </form>
 <section id="status-box" class="status" aria-live="polite">
@@ -216,7 +216,7 @@ againButton.addEventListener('click',()=>window.location.reload());
 
 @app.post("/convert")
 async def convert(file: UploadFile = File(...), target_format: str = Form(...)):
-    if target_format not in {"pdf", "txt"}:
+    if target_format not in {"pdf", "txt", "docx"}:
         raise HTTPException(status_code=400, detail="Неподдерживаемый формат")
     if not file.filename:
         raise HTTPException(status_code=400, detail="Выберите файл")
@@ -318,12 +318,22 @@ def download_result(task_id: str):
         filename = Path(status.result_filename or f"result.{status.target_format}").name
         ascii_name = "".join(c if c.isascii() and (c.isalnum() or c in "._-") else "_" for c in filename)
         disposition = f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
-        media_type = "application/pdf" if status.target_format.lower() == "pdf" else "text/plain; charset=utf-8"
+        
+        media_types = {
+            "pdf": "application/pdf",
+            "txt": "text/plain; charset=utf-8",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }
+        media_type = media_types.get(
+            status.target_format.lower(),
+            "application/octet-stream",
+        )
         return Response(
             content=data,
             media_type=media_type,
             headers={"Content-Disposition": disposition},
         )
+
     except grpc.RpcError as exc:
         code = 404 if exc.code() == grpc.StatusCode.NOT_FOUND else 502
         raise HTTPException(status_code=code, detail=exc.details() or "Ошибка gRPC") from exc

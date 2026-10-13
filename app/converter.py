@@ -3,6 +3,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from PIL import Image
+from pypdf import PdfReader
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -16,6 +17,14 @@ def convert(source: Path, target: Path, target_format: str):
     fmt = target_format.lower().lstrip(".")
     source_ext = source.suffix.lower().lstrip(".")
     target.parent.mkdir(parents=True, exist_ok=True)
+    if source_ext == "pdf" and fmt == "txt":
+        reader = PdfReader(str(source))
+        text = "\n".join(
+            page.extract_text() or ""
+            for page in reader.pages
+        )
+        target.write_text(text, encoding="utf-8")
+        return
 
     if source_ext == "txt" and fmt == "pdf":
         font_path = Path(

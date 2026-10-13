@@ -63,7 +63,12 @@ class FileService(file_service_pb2_grpc.FileServiceServicer):
 
 def main():
     db.init_db()
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(
+    futures.ThreadPoolExecutor(max_workers=10),
+    options=[
+        ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+    ],
+    )
     file_service_pb2_grpc.add_FileServiceServicer_to_server(FileService(), server)
     server.add_insecure_port(GRPC_HOST)
     server.start()

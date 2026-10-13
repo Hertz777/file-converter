@@ -9,3 +9,4 @@ pytest==8.3.3
 fastapi
 uvicorn
 python-multipart
+pypdf==5.1.0

@@ -14,7 +14,13 @@ GRPC_HOST = os.getenv("GRPC_HOST", "api:50051")
 
 
 def get_grpc_stub():
-    channel = grpc.insecure_channel(GRPC_HOST)
+    channel = grpc.insecure_channel(
+        GRPC_HOST,
+        options=[
+            ("grpc.max_send_message_length", 50 * 1024 * 1024),
+            ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+        ],
+    )
     return channel, file_service_pb2_grpc.FileServiceStub(channel)
 
 

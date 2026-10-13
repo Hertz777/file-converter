@@ -70,6 +70,14 @@ button:hover{background:#414141}button:disabled{opacity:.6;cursor:wait}.hint{fon
 <a id="download-link" class="download" hidden>Скачать результат</a>
 <button id="again-button" class="secondary" type="button" hidden>Конвертировать ещё</button>
 </section>
+<section class="history">
+  <h2>История конвертаций</h2>
+  <button id="history-button" type="button" class="secondary">
+    Обновить историю
+  </button>
+  <p id="history-message">Загрузка истории...</p>
+  <div id="history-list"></div>
+</section>
 </main>
 <script>
 const form=document.getElementById('convert-form');
@@ -79,6 +87,74 @@ const statusTitle=document.getElementById('status-title');
 const statusText=document.getElementById('status-text');
 const downloadLink=document.getElementById('download-link');
 const againButton=document.getElementById('again-button');
+
+const historyButton = document.getElementById('history-button');
+const historyMessage = document.getElementById('history-message');
+const historyList = document.getElementById('history-list');
+
+const historyLabels = {
+  QUEUED: 'В очереди',
+  PROCESSING: 'Обрабатывается',
+  COMPLETED: 'Завершено',
+  FAILED: 'Ошибка'
+};
+
+async function loadHistory() {
+  historyButton.disabled = true;
+  historyMessage.textContent = 'Загружаем историю...';
+  historyList.replaceChildren();
+
+  try {
+    const response = await fetch('/api/history');
+    const data = await readResponse(response);
+
+    if (data.tasks.length === 0) {
+      historyMessage.textContent = 'История пока пуста.';
+      return;
+    }
+
+    historyMessage.textContent = '';
+
+    for (const task of data.tasks) {
+      const item = document.createElement('div');
+      item.style.cssText =
+        'background:#f3f5f8;padding:14px;border-radius:10px;margin-top:10px;overflow-wrap:anywhere';
+
+      const title = document.createElement('strong');
+      title.textContent = task.filename;
+
+      const details = document.createElement('p');
+      details.textContent =
+        `${task.target_format.toUpperCase()} · ${historyLabels[task.status] || task.status}`;
+
+      item.append(title, details);
+
+      if (task.error_message) {
+        const error = document.createElement('p');
+        error.textContent = task.error_message;
+        item.append(error);
+      }
+
+      if (task.status === 'COMPLETED') {
+        const link = document.createElement('a');
+        link.href = '/download/' + encodeURIComponent(task.task_id);
+        link.textContent = 'Скачать результат';
+        link.className = 'download';
+        item.append(link);
+      }
+
+      historyList.append(item);
+    }
+  } catch (error) {
+    historyMessage.textContent = 'Не удалось загрузить историю: ' + error.message;
+  } finally {
+    historyButton.disabled = false;
+  }
+}
+
+historyButton.addEventListener('click', loadHistory);
+loadHistory();
+
 const labels={QUEUED:'В очереди',PROCESSING:'Обрабатывается',COMPLETED:'Конвертация завершена!',FAILED:'Не удалось конвертировать файл'};
 async function readResponse(response){
  const text=await response.text(); let data;
@@ -166,6 +242,39 @@ def task_status(task_id: str):
     finally:
         channel.close()
 
+
+@app.get("/api/history")
+def task_history(limit: int = 20):
+    limit = max(1, min(limit, 100))
+    channel, stub = get_grpc_stub()
+
+    try:
+        result = stub.GetTaskHistory(
+            file_service_pb2.TaskHistoryRequest(limit=limit),
+            timeout=10,
+        )
+
+        return {
+            "tasks": [
+                {
+                    "task_id": task.task_id,
+                    "filename": task.filename,
+                    "target_format": task.target_format,
+                    "result_filename": task.result_filename,
+                    "status": task.status,
+                    "error_message": task.error_message,
+                    "created_at": task.created_at,
+                }
+                for task in result.tasks
+            ]
+        }
+    except grpc.RpcError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=exc.details() or "Ошибка gRPC",
+        ) from exc
+    finally:
+        channel.close()
 
 @app.get("/download/{task_id}")
 def download_result(task_id: str):

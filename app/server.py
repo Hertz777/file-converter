@@ -26,6 +26,31 @@ class FileService(file_service_pb2_grpc.FileServiceServicer):
         task_id, filename, target_format, _, _, result_filename, status, error = row
         return file_service_pb2.TaskStatusResponse(task_id=str(task_id), filename=filename, target_format=target_format, status=status, result_filename=result_filename or "", error_message=error or "")
 
+    
+    def GetTaskHistory(self, request, context):
+        limit = request.limit if request.limit > 0 else 20
+        limit = min(limit, 100)
+
+        rows = db.get_recent_tasks(limit)
+        tasks = []
+
+        for row in rows:
+            task_id, filename, target_format, result_filename, status, error_message, created_at = row
+
+            tasks.append(
+                file_service_pb2.TaskHistoryItem(
+                    task_id=str(task_id),
+                    filename=filename,
+                    target_format=target_format,
+                    result_filename=result_filename or "",
+                    status=status,
+                    error_message=error_message or "",
+                    created_at=created_at.isoformat(),
+                )
+            )
+
+        return file_service_pb2.TaskHistoryResponse(tasks=tasks)
+
     def DownloadResult(self, request, context):
         row = db.get_task(request.task_id)
         if not row:

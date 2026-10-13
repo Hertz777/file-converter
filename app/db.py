@@ -41,3 +41,18 @@ def update_task(task_id, status, result_path=None, result_filename=None, error_m
     with get_conn() as conn:
         conn.execute("UPDATE tasks SET status=%s, result_path=COALESCE(%s,result_path), result_filename=COALESCE(%s,result_filename), error_message=%s, updated_at=NOW() WHERE id=%s", (status, result_path, result_filename, error_message, task_id))
         conn.commit()
+
+def get_recent_tasks(limit=20):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, filename, target_format, result_filename,
+                   status, error_message, created_at
+            FROM tasks
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+        return rows

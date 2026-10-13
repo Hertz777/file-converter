@@ -5,6 +5,7 @@ package fileconverter;
 service FileService {
   rpc UploadFile (UploadFileRequest) returns (UploadFileResponse);
   rpc GetTaskStatus (TaskStatusRequest) returns (TaskStatusResponse);
+  rpc GetTaskHistory (TaskHistoryRequest) returns (TaskHistoryResponse);
   rpc DownloadResult (DownloadRequest) returns (stream FileChunk);
 }
 
@@ -38,4 +39,21 @@ message DownloadRequest {
 
 message FileChunk {
   bytes content = 1;
+}
+message TaskHistoryRequest {
+  int32 limit = 1;
+}
+
+message TaskHistoryItem {
+  string task_id = 1;
+  string filename = 2;
+  string target_format = 3;
+  string result_filename = 4;
+  string status = 5;
+  string error_message = 6;
+  string created_at = 7;
+}
+
+message TaskHistoryResponse {
+  repeated TaskHistoryItem tasks = 1;
 }

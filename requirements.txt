@@ -6,3 +6,6 @@ psycopg[binary]==3.2.3
 Pillow==11.0.0
 reportlab==4.2.5
 pytest==8.3.3
+fastapi
+uvicorn
+python-multipart

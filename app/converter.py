@@ -1,6 +1,16 @@
+
 from pathlib import Path
+from xml.sax.saxutils import escape
+
 from PIL import Image
-from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+
 
 def convert(source: Path, target: Path, target_format: str):
     fmt = target_format.lower().lstrip(".")
@@ -8,17 +18,54 @@ def convert(source: Path, target: Path, target_format: str):
     target.parent.mkdir(parents=True, exist_ok=True)
 
     if source_ext == "txt" and fmt == "pdf":
-        c = canvas.Canvas(str(target))
-        y = 800
-        for line in source.read_text(encoding="utf-8").splitlines():
-            c.drawString(50, y, line[:110])
-            y -= 16
-            if y < 50:
-                c.showPage(); y = 800
-        c.save()
+        font_path = Path(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        )
+
+        if not font_path.exists():
+            raise RuntimeError(
+                "Не найден шрифт DejaVu Sans для поддержки кириллицы"
+            )
+
+        if "DejaVu" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont("DejaVu", str(font_path)))
+
+        document = SimpleDocTemplate(
+            str(target),
+            pagesize=A4,
+            rightMargin=20 * mm,
+            leftMargin=20 * mm,
+            topMargin=20 * mm,
+            bottomMargin=20 * mm,
+        )
+
+        style = ParagraphStyle(
+            "CyrillicText",
+            fontName="DejaVu",
+            fontSize=11,
+            leading=16,
+            textColor=colors.black,
+            wordWrap="CJK",
+        )
+
+        text = source.read_text(encoding="utf-8-sig")
+        story = []
+
+        for line in text.splitlines():
+            if line.strip():
+                story.append(Paragraph(escape(line), style))
+            else:
+                story.append(Spacer(1, 8))
+
+        if not story:
+            story.append(Paragraph("", style))
+
+        document.build(story)
         return
 
-    if source_ext in {"png", "jpg", "jpeg"} and fmt in {"png", "jpg", "jpeg"}:
+    if source_ext in {"png", "jpg", "jpeg"} and fmt in {
+        "png", "jpg", "jpeg"
+    }:
         with Image.open(source) as img:
             if fmt in {"jpg", "jpeg"}:
                 img = img.convert("RGB")
